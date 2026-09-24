@@ -1,6 +1,11 @@
 name: Build West Beauty Remote
 
 on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/westbeauty-build.yml'
+      - 'westbeauty/**'
   pull_request:
     branches: [master]
     paths:

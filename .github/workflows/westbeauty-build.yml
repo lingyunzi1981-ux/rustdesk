@@ -195,8 +195,12 @@ jobs:
 
       - name: Apply West Beauty customization
         shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+          PYTHONUTF8: "1"
         run: |
-          python .\builder\westbeauty\patch_rustdesk.py .\src --bundle .\builder
+          [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+          python -X utf8 .\builder\westbeauty\patch_rustdesk.py .\src --bundle .\builder
           Get-Content .\src\WEST_BEAUTY_PATCH_LOG.txt
           Get-Content .\src\WEST_BEAUTY_CUSTOMIZATION.json
 

@@ -138,7 +138,9 @@ jobs:
         run: |
           flutter doctor -v
           flutter precache --windows
-          $flutterRoot = "${{ steps.flutter.outputs['CACHE-PATH'] }}"
+          $flutterExe = (Get-Command flutter).Source
+          $flutterRoot = Split-Path (Split-Path $flutterExe -Parent) -Parent
+          if (-not (Test-Path (Join-Path $flutterRoot 'bin\flutter.bat'))) { throw "Cannot resolve Flutter root from $flutterExe" }
           Write-Host "Flutter root: $flutterRoot"
           Invoke-WebRequest -Uri https://github.com/rustdesk/engine/releases/download/main/windows-x64-release.zip -OutFile windows-x64-release.zip
           Expand-Archive -Path windows-x64-release.zip -DestinationPath windows-x64-release -Force
@@ -149,7 +151,9 @@ jobs:
       - name: Patch Flutter 3.24.5
         shell: pwsh
         run: |
-          $flutterRoot = "${{ steps.flutter.outputs['CACHE-PATH'] }}"
+          $flutterExe = (Get-Command flutter).Source
+          $flutterRoot = Split-Path (Split-Path $flutterExe -Parent) -Parent
+          if (-not (Test-Path (Join-Path $flutterRoot 'bin\flutter.bat'))) { throw "Cannot resolve Flutter root from $flutterExe" }
           Copy-Item .\src\.github\patches\flutter_3.24.4_dropdown_menu_enableFilter.diff $flutterRoot -Force
           Push-Location $flutterRoot
           git apply flutter_3.24.4_dropdown_menu_enableFilter.diff

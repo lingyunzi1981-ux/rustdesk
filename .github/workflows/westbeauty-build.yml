@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/westbeauty-build.yml'
       - 'westbeauty/**'
+      - '.github/westbeauty-v2-trigger'
   pull_request:
     branches: [master]
     paths:

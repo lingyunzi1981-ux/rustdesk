@@ -1,4 +1,4 @@
-name: Build West Beauty Remote
+name: Build West Beauty Remote V2
 
 on:
   push:
@@ -138,7 +138,9 @@ jobs:
         run: |
           flutter doctor -v
           flutter precache --windows
-          $flutterRoot = "${{ steps.flutter.outputs['CACHE-PATH'] }}"
+          $flutterExe = (Get-Command flutter).Source
+          $flutterRoot = Split-Path (Split-Path $flutterExe -Parent) -Parent
+          if (-not (Test-Path (Join-Path $flutterRoot 'bin\flutter.bat'))) { throw "Cannot resolve Flutter root from $flutterExe" }
           Write-Host "Flutter root: $flutterRoot"
           Invoke-WebRequest -Uri https://github.com/rustdesk/engine/releases/download/main/windows-x64-release.zip -OutFile windows-x64-release.zip
           Expand-Archive -Path windows-x64-release.zip -DestinationPath windows-x64-release -Force
@@ -149,7 +151,9 @@ jobs:
       - name: Patch Flutter 3.24.5
         shell: pwsh
         run: |
-          $flutterRoot = "${{ steps.flutter.outputs['CACHE-PATH'] }}"
+          $flutterExe = (Get-Command flutter).Source
+          $flutterRoot = Split-Path (Split-Path $flutterExe -Parent) -Parent
+          if (-not (Test-Path (Join-Path $flutterRoot 'bin\flutter.bat'))) { throw "Cannot resolve Flutter root from $flutterExe" }
           Copy-Item .\src\.github\patches\flutter_3.24.4_dropdown_menu_enableFilter.diff $flutterRoot -Force
           Push-Location $flutterRoot
           git apply flutter_3.24.4_dropdown_menu_enableFilter.diff
@@ -191,8 +195,12 @@ jobs:
 
       - name: Apply West Beauty customization
         shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+          PYTHONUTF8: "1"
         run: |
-          python .\builder\westbeauty\patch_rustdesk.py .\src --bundle .\builder
+          [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+          python -X utf8 .\builder\westbeauty\patch_rustdesk.py .\src --bundle .\builder
           Get-Content .\src\WEST_BEAUTY_PATCH_LOG.txt
           Get-Content .\src\WEST_BEAUTY_CUSTOMIZATION.json
 
@@ -243,24 +251,48 @@ jobs:
           name: topmostwindow-artifacts-x64
           path: src/rustdesk
 
-      - name: Build complete self-extracted EXE
+      - name: Build standard West Beauty installer
         shell: pwsh
         working-directory: src
         run: |
-          $manifest = Get-Content .\res\manifest.xml
-          $manifest | Where-Object { $_ -notmatch 'dpiAware' } | Set-Content .\res\manifest.xml -Encoding UTF8
-          Push-Location .\libs\portable
-          python -m pip install --disable-pip-version-check -r requirements.txt
-          python .\generate.py -f ..\..\rustdesk\ -o . -e ..\..\rustdesk\rustdesk.exe
-          Pop-Location
+          choco install innosetup -y --no-progress
           New-Item -ItemType Directory -Force .\SignOutput | Out-Null
-          Move-Item .\target\release\rustdesk-portable-packer.exe '.\SignOutput\西美远控.exe' -Force
-          Get-FileHash '.\SignOutput\西美远控.exe' -Algorithm SHA256 | Format-List
-          (Get-Item '.\SignOutput\西美远控.exe').VersionInfo | Format-List FileDescription,ProductName,CompanyName,FileVersion,ProductVersion
+          @'
+          [Setup]
+          AppId={{B5A4D980-6F1E-4E20-9A0A-57DFAE516B21}
+          AppName=西美远控
+          AppVersion=2.0.0
+          AppPublisher=West Beauty Group
+          DefaultDirName={autopf}\West Beauty Group\西美远控
+          DefaultGroupName=西美远控
+          UninstallDisplayName=西美远控
+          OutputDir=SignOutput
+          OutputBaseFilename=西美远控-Setup-x64
+          Compression=lzma2
+          SolidCompression=yes
+          ArchitecturesAllowed=x64compatible
+          ArchitecturesInstallIn64BitMode=x64compatible
+          PrivilegesRequired=admin
+          WizardStyle=modern
+          SetupIconFile=flutter\windows\runner\resources\app_icon.ico
 
-      - name: Upload final West Beauty Remote EXE
+          [Files]
+          Source: "rustdesk\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{autodesktop}\西美远控"; Filename: "{app}\rustdesk.exe"; WorkingDir: "{app}"
+          Name: "{group}\西美远控"; Filename: "{app}\rustdesk.exe"; WorkingDir: "{app}"
+          Name: "{group}\卸载西美远控"; Filename: "{uninstallexe}"
+
+          [Run]
+          Filename: "{app}\rustdesk.exe"; Description: "启动西美远控"; Flags: nowait postinstall skipifsilent
+          '@ | Set-Content .\westbeauty-v2.iss -Encoding UTF8
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" .\westbeauty-v2.iss
+          Get-FileHash '.\SignOutput\西美远控-Setup-x64.exe' -Algorithm SHA256 | Format-List
+
+      - name: Upload West Beauty Remote V2 installer
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: WestBeautyRemote-Windows-x64
-          path: src/SignOutput/西美远控.exe
+          name: WestBeautyRemote-V2-Setup-x64
+          path: src/SignOutput/西美远控-Setup-x64.exe
           if-no-files-found: error

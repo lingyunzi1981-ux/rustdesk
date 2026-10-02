@@ -1,0 +1,65 @@
+name: Verify West Beauty Split Installer
+on:
+  push:
+    branches: [fix/westbeauty-windows-20261002]
+    paths: [.github/workflows/westbeauty-split-installer.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  split-and-restore:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: WestBeautyRemote-Accepted-RC-Setup-x64
+          run-id: 36983408161
+          github-token: ${{ github.token }}
+          path: accepted
+      - name: Create standard ZIP parts and test the double-click restore script
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference=$false
+          $expected='8BC93210F8B7CC23E99077B1C85AEA85B9526A26698D086EBD59C8C496061113'
+          $exe='./accepted/西美远控-Setup-x64-2.1.0-rc1.exe'
+          if((Get-FileHash $exe -Algorithm SHA256).Hash -ne $expected){throw 'Input hash mismatch'}
+          New-Item -ItemType Directory -Force split/first,split/second,split/output,split/test | Out-Null
+          $bytes=[IO.File]::ReadAllBytes((Resolve-Path $exe))
+          $first=[byte[]]::new(12MB); [Array]::Copy($bytes,0,$first,0,$first.Length)
+          $second=[byte[]]::new($bytes.Length-$first.Length); [Array]::Copy($bytes,$first.Length,$second,0,$second.Length)
+          [IO.File]::WriteAllBytes((Join-Path $PWD 'split/first/WestBeautyRemote.part1'),$first)
+          [IO.File]::WriteAllBytes((Join-Path $PWD 'split/second/WestBeautyRemote.part2'),$second)
+          Copy-Item ./westbeauty/restore-installer.cmd './split/first/双击还原并安装.cmd'
+          @'
+          西美远控候选安装版，分卷恢复说明
+          1. 下载 WestBeautyRemote-1.zip 和 WestBeautyRemote-2.zip，放在同一目录。
+          2. 只需解压第1个ZIP。
+          3. 双击“双击还原并安装.cmd”。脚本会读取第2个ZIP，校验两卷和成品SHA-256，再打开中文安装向导。
+          本脚本不下载网络内容，不更改安全设置，不关闭杀毒软件。
+          安装包未签名，尚待Windows 10/11真机与两端远控验收。
+          '@ | Set-Content './split/first/先看这里.txt' -Encoding UTF8
+          Compress-Archive ./split/first/* ./split/output/WestBeautyRemote-1.zip
+          Compress-Archive ./split/second/* ./split/output/WestBeautyRemote-2.zip
+          Get-ChildItem ./split/output/*.zip | ForEach-Object {if($_.Length -ge 15MB){throw 'ZIP exceeds size limit'}}
+          Expand-Archive ./split/output/WestBeautyRemote-1.zip ./split/test/WestBeautyRemote-1
+          Copy-Item ./split/output/WestBeautyRemote-2.zip ./split/test/
+          & './split/test/WestBeautyRemote-1/双击还原并安装.cmd' --verify-only
+          if($LASTEXITCODE -ne 0){throw 'Restore script failed'}
+          $restored='./split/test/WestBeautyRemote-1/西美远控-Setup-x64-2.1.0-rc1.exe'
+          if((Get-FileHash $restored -Algorithm SHA256).Hash -ne $expected){throw 'Restored EXE mismatch'}
+          'Positive restore: PASS; SHA256='+$expected | Set-Content ./split/output/restore-test.txt
+          Remove-Item $restored
+          Add-Content ./split/test/WestBeautyRemote-1/WestBeautyRemote.part2 -Value 'tamper' -NoNewline
+          & './split/test/WestBeautyRemote-1/双击还原并安装.cmd' --verify-only
+          if($LASTEXITCODE -eq 0 -or (Test-Path $restored)){throw 'Corrupted input was not rejected'}
+          'Corrupted-part rejection: PASS' | Add-Content ./split/output/restore-test.txt
+          exit 0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: WestBeautyRemote-Split-Installer
+          path: split/output
+          retention-days: 30

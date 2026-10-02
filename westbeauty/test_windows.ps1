@@ -55,7 +55,7 @@ try {
     Record 'upgrade_fixture_ready' (Test-Path (Join-Path $appDir 'rustdesk.exe')) 'V2 installed before candidate'
   }
   Record 'installer_sha256' $true (Get-FileHash $installerPath -Algorithm SHA256).Hash
-  Record 'authenticode_signature' $true ((Get-AuthenticodeSignature $installerPath).Status.ToString())
+  Record 'authenticode_status_observed' $true ((Get-AuthenticodeSignature $installerPath).Status.ToString())
   $timer=[Diagnostics.Stopwatch]::StartNew()
   $install=Start-Process $installerPath -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/LOG="'+(Join-Path $OutputDirectory 'install.log')+'"')) -PassThru
   if(-not $install.WaitForExit(120000)){ throw 'Installer timed out after 120 seconds' }
@@ -69,10 +69,13 @@ try {
   Record 'uninstall_registration' ($installed.DisplayName -eq '西美远控') $installed.DisplayName
   Record 'install_location_registration' ($installed.InstallLocation.TrimEnd('\') -eq $appDir) $installed.InstallLocation
   $shortcut=Join-Path $env:PUBLIC 'Desktop\西美远控.lnk'
-  $shell=New-Object -ComObject WScript.Shell
-  $link=$shell.CreateShortcut($shortcut)
-  $shortcutInfo=@{path=$shortcut;exists=(Test-Path $shortcut);target=$link.TargetPath;arguments=$link.Arguments}
-  Record 'desktop_shortcut' ((Test-Path $shortcut) -and $link.TargetPath -eq $exe) ($shortcutInfo|ConvertTo-Json -Compress)
+  # WScript.Shell returns an empty TargetPath for these valid Unicode links on
+  # the hosted image. Shell.Application resolves the actual Unicode target.
+  $shell=New-Object -ComObject Shell.Application
+  $shortcutItem=$shell.NameSpace((Split-Path $shortcut)).ParseName((Split-Path $shortcut -Leaf))
+  $shortcutTarget=$shortcutItem.ExtendedProperty('System.Link.TargetParsingPath')
+  $shortcutInfo=@{path=$shortcut;exists=(Test-Path $shortcut);target=$shortcutTarget}
+  Record 'desktop_shortcut' ((Test-Path $shortcut) -and $shortcutTarget -eq $exe) ($shortcutInfo|ConvertTo-Json -Compress)
   if(Test-Path $shortcut){Copy-Item $shortcut (Join-Path $OutputDirectory 'desktop-shortcut.lnk')}
   if(-not $Baseline) {
     $probe=Start-Process $exe -ArgumentList '--check-install' -PassThru -Wait -RedirectStandardOutput (Join-Path $OutputDirectory 'installed-state.txt')
@@ -96,10 +99,10 @@ try {
   $app.Refresh()
   Record 'main_window_responsive' (-not $app.HasExited -and $app.Responding -and $app.MainWindowHandle -ne 0) $app.MainWindowTitle
   if(-not $app.HasExited) {
-    $other=Start-Process $exe -ArgumentList '--no-server' -PassThru -WorkingDirectory $appDir
+    $other=Start-Process $shortcut -ArgumentList '--no-server' -PassThru
     Start-Sleep -Seconds 3
     $windows=@(Get-Process | Where-Object {$_.Path -eq $exe -and $_.MainWindowHandle -ne 0})
-    Record 'repeated_launch_single_window' ($windows.Count -eq 1) "window_count=$($windows.Count)"
+    Record 'repeated_shortcut_launch_single_window' ($windows.Count -eq 1) "window_count=$($windows.Count)"
     $null=Capture $app 'repeated-launch'
   }
 } catch {Record 'unexpected_exception' $false $_.Exception.Message}

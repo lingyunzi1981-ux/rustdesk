@@ -95,6 +95,7 @@ jobs:
           path: ./topmost/WindowInjection/x64/Release/WindowInjection.dll
 
   build-windows-x64:
+    timeout-minutes: 90
     needs: [generate-bridge, build-topmost]
     runs-on: windows-2022
     steps:
@@ -302,6 +303,7 @@ jobs:
             qa-results
             src/package-files-sha256.csv
             src/WEST_BEAUTY_CUSTOMIZATION.json
+            src/SignOutput/*.exe
           retention-days: 30
 
       - name: Upload tested candidate installer

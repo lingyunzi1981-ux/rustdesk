@@ -1,3 +1,4 @@
+# Exact uninstall key is supplied by a code constant to avoid brace escaping ambiguity.
 param([Parameter(Mandatory=$true)][string]$SourceInstaller)
 $ErrorActionPreference='Stop'
 $repo=(Get-Location).Path

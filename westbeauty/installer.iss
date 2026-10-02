@@ -36,8 +36,8 @@ Source: "rustdesk\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs crea
 Type: files; Name: "{app}\rustdesk.exe"
 
 [Registry]
-Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{{B5A4D980-6F1E-4E20-9A0A-57DFAE516B21}_is1"; ValueType: string; ValueName: "BuildDate"; ValueData: "{#NativeBuildDate}"; Flags: uninsdeletevalue
-Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{{B5A4D980-6F1E-4E20-9A0A-57DFAE516B21}_is1"; ValueType: string; ValueName: "Version"; ValueData: "1.4.9"; Flags: uninsdeletevalue
+Root: HKLM; Subkey: "{code:GetWestBeautyUninstallKey}"; ValueType: string; ValueName: "BuildDate"; ValueData: "{#NativeBuildDate}"; Flags: uninsdeletevalue
+Root: HKLM; Subkey: "{code:GetWestBeautyUninstallKey}"; ValueType: string; ValueName: "Version"; ValueData: "1.4.9"; Flags: uninsdeletevalue
 
 [Icons]
 Name: "{autodesktop}\西美远控"; Filename: "{app}\WestBeautyRemote.exe"; WorkingDir: "{app}"
@@ -52,6 +52,11 @@ Filename: "{app}\WestBeautyRemote.exe"; Description: "启动西美远控"; Flags
 Filename: "{app}\WestBeautyRemote.exe"; Parameters: "--uninstall-service"; Flags: runhidden waituntilterminated; RunOnceId: "StopWestBeautyService"; Check: HasWestBeautyService
 
 [Code]
+function GetWestBeautyUninstallKey(Param: String): String;
+begin
+  Result := 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{B5A4D980-6F1E-4E20-9A0A-57DFAE516B21}_is1';
+end;
+
 function HasWestBeautyService: Boolean;
 begin
   Result := RegKeyExists(HKLM, 'SYSTEM\CurrentControlSet\Services\WestBeautyRemote');

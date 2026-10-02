@@ -1,0 +1,40 @@
+name: Verify Accepted West Beauty Installer
+on:
+  push:
+    branches: [fix/westbeauty-windows-20261002]
+    paths: [.github/workflows/westbeauty-verify-accepted.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify-exact-installer:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: WestBeautyRemote-Accepted-RC-Setup-x64
+          run-id: 36983408161
+          github-token: ${{ github.token }}
+          path: accepted
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: WestBeautyRemote-V2-Setup-x64
+          run-id: 36115432841
+          github-token: ${{ github.token }}
+          path: previous
+      - name: Verify exact installer hash, install, upgrade and both registered uninstallers
+        shell: pwsh
+        run: |
+          $exe='./accepted/西美远控-Setup-x64-2.1.0-rc1.exe'
+          if((Get-FileHash $exe -Algorithm SHA256).Hash -ne '8BC93210F8B7CC23E99077B1C85AEA85B9526A26698D086EBD59C8C496061113'){throw 'Installer hash mismatch'}
+          ./westbeauty/test_windows.ps1 -Installer $exe -OutputDirectory qa-results/clean
+          ./westbeauty/test_windows.ps1 -Installer $exe -UpgradeFrom './previous/西美远控-Setup-x64.exe' -OutputDirectory qa-results/upgrade
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: WestBeautyRemote-Exact-Installer-Verification
+          path: qa-results
+          retention-days: 30

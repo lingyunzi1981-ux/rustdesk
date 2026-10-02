@@ -112,8 +112,14 @@ try {
 } catch {Record 'unexpected_exception' $false $_.Exception.Message}
 finally {
   Get-Process | Where-Object {$_.Path -eq $exe} | Stop-Process -Force -ErrorAction SilentlyContinue
-  if(Test-Path (Join-Path $appDir 'unins000.exe')) {
-    $uninstall=Start-Process (Join-Path $appDir 'unins000.exe') -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/LOG="'+(Join-Path $OutputDirectory 'uninstall.log')+'"')) -PassThru
+  # Inno can rename an upgrade uninstaller to unins001.exe; follow its registered path.
+  $uninstallKey='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{B5A4D980-6F1E-4E20-9A0A-57DFAE516B21}_is1'
+  $uninstallCommand=(Get-ItemProperty $uninstallKey -ErrorAction SilentlyContinue).UninstallString
+  $uninstaller=if($uninstallCommand){$uninstallCommand.Trim('"')}else{''}
+  $validUninstaller=$uninstaller -and $uninstaller.StartsWith($appDir+'\',[StringComparison]::OrdinalIgnoreCase) -and ([IO.Path]::GetFileName($uninstaller) -match '^unins[0-9]+\.exe$') -and (Test-Path $uninstaller)
+  Record 'registered_uninstaller_exists' ([bool]$validUninstaller) $uninstaller
+  if($validUninstaller) {
+    $uninstall=Start-Process $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/LOG="'+(Join-Path $OutputDirectory 'uninstall.log')+'"')) -PassThru
     if($uninstall.WaitForExit(60000)) {Record 'uninstall_exit_zero' ($uninstall.ExitCode -eq 0) $uninstall.ExitCode} else {Record 'uninstall_exit_zero' $false 'timeout'}
     Record 'uninstall_removes_executable' (-not (Test-Path $exe)) $exeName
     Record 'uninstall_removes_shortcut' (-not (Test-Path (Join-Path $env:PUBLIC 'Desktop\西美远控.lnk'))) 'desktop shortcut'

@@ -1,0 +1,11 @@
+西美远控 / West Beauty Group
+
+本软件基于 RustDesk 1.4.9 修改，遵循 GNU Affero General Public License v3.0。
+原项目：https://github.com/rustdesk/rustdesk
+定制源码：https://github.com/lingyunzi1981-ux/rustdesk
+修复分支：fix/westbeauty-windows-20261002
+本安装包保留 RustDesk 与各依赖的开源版权及许可文件。品牌定制不改变原作者权利。
+Microsoft Visual C++ Runtime 组件属于 Microsoft，其使用和再分发遵循相应许可。
+
+此版本不设置永久密码、不自动启用无人值守或隐藏连接状态。仅在设备所有者或管理员明确授权后使用远程连接。
+2.1.0-rc1 为待验收候选版本。请先在测试设备验证再进行企业批量部署。

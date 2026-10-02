@@ -82,7 +82,6 @@ if p.exists():
     s=rd(p)
     s=re.sub(r'(?m)^ProductName\s*=\s*"[^"]*"',f'ProductName = "{DISPLAY}"',s)
     s=re.sub(r'(?m)^FileDescription\s*=\s*"[^"]*"',f'FileDescription = "{DISPLAY}"',s)
-    s=re.sub(r'(?m)^LegalCopyright\s*=\s*"[^"]*"',f'LegalCopyright = "Copyright © 2026 {COMPANY}. All rights reserved."',s)
     wr(p,s)
 
 # Translation values only: replace visible RustDesk text, keep keys intact.
@@ -90,24 +89,31 @@ langdir=root/"src/lang"
 if langdir.exists():
     vr=re.compile(r'(\(\s*"(?:[^"\\]|\\.)*"\s*,\s*")((?:[^"\\]|\\.)*)("\s*\))')
     for p in langdir.glob("*.rs"):
+        if p.name == "template.rs": continue
         old=rd(p)
         new=vr.sub(lambda m:m.group(1)+m.group(2).replace("RustDesk",DISPLAY)+m.group(3),old)
         if new!=old: wr(p,new)
 
-# Installer display/shortcut name: alter the install_me-local display variable only.
+# Inno Setup and Rust must agree on the installation identity. Do not change
+# install_me's local identity: it is also used in executable/service paths.
 p=root/"src/platform/windows.rs"
-if p.exists():
-    s=rd(p)
-    sig='pub fn install_me(options: &str, path: String, silent: bool, debug: bool) -> ResultType<()> {'
-    pos=s.find(sig)
-    if pos>=0:
-        tail=s[pos:]
-        marker='let app_name = crate::get_app_name();'
-        m=tail.find(marker)
-        if m>=0:
-            a=pos+m
-            s=s[:a]+f'let app_name = "{DISPLAY}".to_owned();'+s[a+len(marker):]
-            wr(p,s)
+rep(p, 'const IS1: &str = "{54E86BC2-6C85-41F3-A9EB-1A94AC9B1F93}_is1";',
+       'const IS1: &str = "{B5A4D980-6F1E-4E20-9A0A-57DFAE516B21}_is1";', required=True)
+
+# The upstream argument trim removed the final non-whitespace character.
+p=root/"flutter/windows/runner/main.cpp"
+rep(p, 'argument.erase(argument.find_last_not_of(" \\n\\r\\t"));',
+       'argument.erase(argument.find_last_not_of(" \\n\\r\\t") + 1);', required=True)
+
+# Brand the first-run UI in Chinese, while preserving a saved language choice.
+p=root/"libs/hbb_common/src/config.rs"
+rep(p, '        Config::load_::<LocalConfig>("_local")',
+       '        let mut config = Config::load_::<LocalConfig>("_local");\n        config.options.entry("lang".to_owned()).or_insert_with(|| "zh-cn".to_owned());\n        config', required=True)
+
+# Read-only support command, used to verify installed-state recognition in CI.
+p=root/"src/core_main.rs"
+rep(p, '        if args[0] == "--version" {',
+       '        if args[0] == "--check-install" {\n            println!("{}", crate::platform::is_installed());\n            return None;\n        }\n        if args[0] == "--version" {', required=True)
 
 # Vendor strings in installer/UI sources.
 for rel in ["flutter/lib/desktop/pages/install_page.dart",
@@ -137,7 +143,7 @@ for rel,name in {
 manifest={
  "base":"RustDesk 1.4.9","company":COMPANY,"visible_name":DISPLAY,"internal_name":INTERNAL,
  "id_server":ID_SERVER,"relay_server":RELAY_SERVER,"server_public_key":KEY,
- "final_exe":"西美远控.exe"}
+ "final_exe":"WestBeautyRemote.exe","installer_version":"2.1.0-rc1"}
 (root/"WEST_BEAUTY_CUSTOMIZATION.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding="utf-8")
 (root/"WEST_BEAUTY_PATCH_LOG.txt").write_text("West Beauty customization applied\n"+json.dumps(manifest,ensure_ascii=False,indent=2),encoding="utf-8")
 print("West Beauty customization applied")

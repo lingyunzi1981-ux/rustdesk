@@ -1,6 +1,7 @@
 param(
   [Parameter(Mandatory=$true)][string]$Installer,
   [string]$OutputDirectory = 'qa-results',
+  [string]$UpgradeFrom = '',
   [switch]$Baseline
 )
 $ErrorActionPreference = 'Stop'
@@ -48,6 +49,11 @@ $exe=Join-Path $appDir $exeName
 $runStart=Get-Date
 try {
   $installerPath=(Resolve-Path $Installer).Path
+  if($UpgradeFrom) {
+    $old=Start-Process (Resolve-Path $UpgradeFrom).Path -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -PassThru
+    if(-not $old.WaitForExit(120000) -or $old.ExitCode -ne 0){throw 'Could not prepare original V2 upgrade fixture'}
+    Record 'upgrade_fixture_ready' (Test-Path (Join-Path $appDir 'rustdesk.exe')) 'V2 installed before candidate'
+  }
   Record 'installer_sha256' $true (Get-FileHash $installerPath -Algorithm SHA256).Hash
   Record 'authenticode_signature' $true ((Get-AuthenticodeSignature $installerPath).Status.ToString())
   $timer=[Diagnostics.Stopwatch]::StartNew()
@@ -55,6 +61,7 @@ try {
   if(-not $install.WaitForExit(120000)){ throw 'Installer timed out after 120 seconds' }
   Record 'clean_install_exit_zero' ($install.ExitCode -eq 0) "exit=$($install.ExitCode), milliseconds=$($timer.ElapsedMilliseconds)"
   Record 'executable_present' (Test-Path $exe) $exeName
+  if(-not $Baseline){Record 'obsolete_v2_executable_removed' (-not (Test-Path (Join-Path $appDir 'rustdesk.exe'))) 'rustdesk.exe absent'}
   $required=@('librustdesk.dll','flutter_windows.dll','data\app.so','data\icudtl.dat','data\flutter_assets\AssetManifest.bin')
   foreach($file in $required){Record "runtime_file_$file" (Test-Path (Join-Path $appDir $file)) $file}
   $reg='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{B5A4D980-6F1E-4E20-9A0A-57DFAE516B21}_is1'
@@ -64,7 +71,13 @@ try {
   $shortcut=Join-Path $env:PUBLIC 'Desktop\西美远控.lnk'
   $shell=New-Object -ComObject WScript.Shell
   $link=$shell.CreateShortcut($shortcut)
-  Record 'desktop_shortcut' ((Test-Path $shortcut) -and $link.TargetPath -eq $exe) $link.TargetPath
+  $shortcutInfo=@{path=$shortcut;exists=(Test-Path $shortcut);target=$link.TargetPath;arguments=$link.Arguments}
+  Record 'desktop_shortcut' ((Test-Path $shortcut) -and $link.TargetPath -eq $exe) ($shortcutInfo|ConvertTo-Json -Compress)
+  if(Test-Path $shortcut){Copy-Item $shortcut (Join-Path $OutputDirectory 'desktop-shortcut.lnk')}
+  if(-not $Baseline) {
+    $probe=Start-Process $exe -ArgumentList '--check-install' -PassThru -Wait -RedirectStandardOutput (Join-Path $OutputDirectory 'installed-state.txt')
+    Record 'native_installed_state' ($probe.ExitCode -eq 0 -and (Get-Content (Join-Path $OutputDirectory 'installed-state.txt') -Raw).Trim() -eq 'true') (Get-Content (Join-Path $OutputDirectory 'installed-state.txt') -Raw)
+  }
   $timer.Restart()
   $version=Start-Process $exe -ArgumentList '--version' -PassThru -Wait -RedirectStandardOutput (Join-Path $OutputDirectory 'version.txt') -RedirectStandardError (Join-Path $OutputDirectory 'version-error.txt')
   Record 'native_core_version' ($version.ExitCode -eq 0 -and (Get-Content (Join-Path $OutputDirectory 'version.txt') -Raw).Trim() -eq '1.4.9') "exit=$($version.ExitCode), milliseconds=$($timer.ElapsedMilliseconds)"
@@ -99,7 +112,7 @@ finally {
     Record 'uninstall_removes_shortcut' (-not (Test-Path (Join-Path $env:PUBLIC 'Desktop\西美远控.lnk'))) 'desktop shortcut'
     Record 'uninstall_removes_registration' (-not (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{B5A4D980-6F1E-4E20-9A0A-57DFAE516B21}_is1')) 'uninstall key'
   }
-  $summary=[ordered]@{os=(Get-CimInstance Win32_OperatingSystem).Caption;baseline=[bool]$Baseline;started=$runStart.ToUniversalTime().ToString('o');checks=$results;limitations=@('Windows Server CI only; Windows 10/11 physical-device acceptance pending','No remote device connection, unattended access, reboot, UAC or dual-end test','Screenshot metrics are automated heuristics and require visual review','Unsigned builds are not release-ready until distribution/signing is resolved')}
+  $summary=[ordered]@{os=(Get-CimInstance Win32_OperatingSystem).Caption;baseline=[bool]$Baseline;upgrade=[bool]$UpgradeFrom;started=$runStart.ToUniversalTime().ToString('o');checks=$results;limitations=@('Windows Server CI only; Windows 10/11 physical-device acceptance pending','No remote device connection, unattended access, reboot, UAC or dual-end test','Screenshot metrics are automated heuristics and require visual review','Unsigned builds are not release-ready until distribution/signing is resolved')}
   $summary | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $OutputDirectory 'results.json') -Encoding UTF8
 }
 if(-not $Baseline -and @($results|Where-Object{-not $_.passed}).Count -gt 0){throw 'Windows acceptance failed; inspect results.json and screenshots'}

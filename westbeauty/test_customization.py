@@ -73,8 +73,8 @@ class CustomizationTests(unittest.TestCase):
     def test_installer_records_native_build_date(self):
         installer=(BUNDLE/'westbeauty/installer.iss').read_text()
         self.assertIn('#include "native-build-date.iss"',installer)
-        self.assertIn('ValueName: "BuildDate"; ValueData: "{#NativeBuildDate}"',installer)
-        self.assertIn('Subkey: "{code:GetWestBeautyUninstallKey}"',installer)
+        self.assertIn("RegWriteStringValue(HKLM64, UninstallKey, 'BuildDate', '{#NativeBuildDate}')",installer)
+        self.assertIn('if CurStep = ssPostInstall then',installer)
         self.assertNotIn('Uninstall\\{{B5A4',installer)
     def test_required_patch_drift_fails_closed(self):
         # A second application is rejected rather than claiming a patch succeeded.

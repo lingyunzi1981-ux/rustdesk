@@ -80,6 +80,10 @@ try {
   if(-not $Baseline) {
     $probe=Start-Process $exe -ArgumentList '--check-install' -PassThru -Wait -RedirectStandardOutput (Join-Path $OutputDirectory 'installed-state.txt')
     Record 'native_installed_state' ($probe.ExitCode -eq 0 -and (Get-Content (Join-Path $OutputDirectory 'installed-state.txt') -Raw).Trim() -eq 'true') (Get-Content (Join-Path $OutputDirectory 'installed-state.txt') -Raw)
+    $stamp=Start-Process $exe -ArgumentList '--build-date' -PassThru -Wait -RedirectStandardOutput (Join-Path $OutputDirectory 'native-build-date.txt')
+    $nativeDate=(Get-Content (Join-Path $OutputDirectory 'native-build-date.txt') -Raw).Trim()
+    Record 'installed_build_date_matches_native' ($stamp.ExitCode -eq 0 -and $nativeDate -and $installed.BuildDate -eq $nativeDate) "registry=$($installed.BuildDate), native=$nativeDate"
+    Record 'branded_titlebar_asset' ((Get-Content (Join-Path $appDir 'data\flutter_assets\assets\icon.svg') -Raw).Contains('West Beauty Group')) 'West Beauty SVG'
   }
   $timer.Restart()
   $version=Start-Process $exe -ArgumentList '--version' -PassThru -Wait -RedirectStandardOutput (Join-Path $OutputDirectory 'version.txt') -RedirectStandardError (Join-Path $OutputDirectory 'version-error.txt')

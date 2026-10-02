@@ -22,6 +22,7 @@ env:
 
 jobs:
   generate-bridge:
+    if: ${{ !contains(github.event.head_commit.message, '[package-only]') }}
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout RustDesk 1.4.9
@@ -75,6 +76,7 @@ jobs:
             ./src/flutter/ios/Runner/bridge_generated.h
 
   build-topmost:
+    if: ${{ !contains(github.event.head_commit.message, '[package-only]') }}
     runs-on: windows-2022
     steps:
       - name: Add MSBuild to PATH
@@ -276,6 +278,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup installation failed" }
           Copy-Item ..\builder\westbeauty\installer.iss .\westbeauty-rc.iss
           Copy-Item ..\builder\westbeauty\ChineseSimplified.isl .\ChineseSimplified.isl
+          Start-Process .\rustdesk\WestBeautyRemote.exe -ArgumentList '--build-date' -Wait -RedirectStandardOutput native-build-date.txt
+          $stamp = (Get-Content native-build-date.txt -Raw).Trim()
+          if ($stamp -notmatch '^[0-9TZ+ .:-]+$') { throw "Invalid native build date" }
+          ('#define NativeBuildDate "' + $stamp + '"') | Set-Content native-build-date.iss -Encoding UTF8
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" .\westbeauty-rc.iss
           if ($LASTEXITCODE -ne 0) { throw "Installer compilation failed" }
           Get-FileHash '.\SignOutput\西美远控-Setup-x64-2.1.0-rc1.exe' -Algorithm SHA256 | Format-List

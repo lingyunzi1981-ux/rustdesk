@@ -120,6 +120,8 @@ for rel in ["flutter/lib/desktop/pages/install_page.dart",
         wr(p,s)
 
 # Icons.
+p=root/"flutter/assets/icon.svg"
+if p.exists() and (brand/"app.svg").exists(): shutil.copy2(brand/"app.svg",p)
 for rel in ["res/icon.png","flutter/assets/icon.png","flutter/assets/logo.png"]:
     p=root/rel
     if p.exists() and (brand/"app.png").exists(): shutil.copy2(brand/"app.png",p)

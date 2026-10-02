@@ -1,0 +1,73 @@
+name: Package and Accept West Beauty Windows RC
+on:
+  push:
+    branches: [fix/westbeauty-windows-20261002]
+    paths: [.github/workflows/westbeauty-repackage.yml, westbeauty/repackage.ps1]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  await-native-candidate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - name: Await the exact native source build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          for attempt in $(seq 1 170); do
+            status=$(gh api repos/lingyunzi1981-ux/rustdesk/actions/runs/36978271316 --jq '.status')
+            if [ "$status" = completed ]; then
+              conclusion=$(gh api repos/lingyunzi1981-ux/rustdesk/actions/runs/36978271316 --jq '.conclusion')
+              [ "$conclusion" = success ] || { echo "Native source build ended: $conclusion"; exit 1; }
+              exit 0
+            fi
+            sleep 30
+          done
+          echo 'Native source build did not finish in the observation window'; exit 1
+  package-and-accept:
+    needs: await-native-candidate
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Restore source-built native candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: WestBeautyRemote-2.1.0-rc1-Setup-x64
+          run-id: 36978271316
+          github-token: ${{ github.token }}
+          path: native
+      - name: Restore V2 upgrade fixture
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: WestBeautyRemote-V2-Setup-x64
+          run-id: 36115432841
+          github-token: ${{ github.token }}
+          path: previous
+      - name: Correct packaging and record exact source provenance
+        shell: pwsh
+        run: ./westbeauty/repackage.ps1 -SourceInstaller './native/西美远控-Setup-x64-2.1.0-rc1.exe'
+      - name: Test clean installation, upgrade, UI and removal
+        shell: pwsh
+        run: |
+          ./westbeauty/test_windows.ps1 -Installer './repackage/SignOutput/西美远控-Setup-x64-2.1.0-rc1.exe' -OutputDirectory qa-results/clean
+          ./westbeauty/test_windows.ps1 -Installer './repackage/SignOutput/西美远控-Setup-x64-2.1.0-rc1.exe' -UpgradeFrom './previous/西美远控-Setup-x64.exe' -OutputDirectory qa-results/upgrade
+      - name: Save diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: WestBeautyRemote-Final-Windows-QA
+          path: |
+            qa-results
+            repackage/rustdesk/BUILD_PROVENANCE.json
+            repackage/SignOutput/*.exe
+          retention-days: 30
+      - name: Save accepted candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: WestBeautyRemote-Accepted-RC-Setup-x64
+          path: repackage/SignOutput/西美远控-Setup-x64-2.1.0-rc1.exe
+          if-no-files-found: error

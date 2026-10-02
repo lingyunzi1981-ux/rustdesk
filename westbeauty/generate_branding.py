@@ -36,3 +36,5 @@ for sz in [16,24,32,48,64,128,256,512]:
     img.resize((sz,sz),Image.Resampling.LANCZOS).save(out/f'icon-{sz}.png')
 img.save(out/'app.ico',format='ICO',sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
 print('Branding generated in',out)
+# The desktop title bar consumes this SVG asset rather than the EXE icon.
+(out/'app.svg').write_text('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><title>West Beauty Group</title><defs><linearGradient id="b" x2="1" y2="1"><stop stop-color="#1e96eb"/><stop offset="1" stop-color="#082369"/></linearGradient></defs><rect x="15" y="15" width="994" height="994" rx="210" fill="url(#b)"/><path d="M250 330 350 650 465 430 565 650 690 330 620 330 560 520 468 345 365 520 310 330Z" fill="#f5faff"/><path d="M565 650 690 330 620 330 560 520 468 345 515 515Z" fill="#32cdff"/><path d="M215 540Q450 850 790 505" fill="none" stroke="#55e1ff" stroke-width="18"/><path d="M754 300H830M792 262V338" stroke="#fff" stroke-width="12"/></svg>''',encoding='utf-8')

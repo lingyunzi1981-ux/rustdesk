@@ -19,7 +19,7 @@ class CustomizationTests(unittest.TestCase):
         files=['Cargo.toml','src/lang.rs','src/lang/template.rs','src/lang/cn.rs',
                'src/flutter.rs','src/ui_interface.rs','src/platform/windows.rs',
                'src/core_main.rs','flutter/windows/runner/main.cpp',
-               'flutter/windows/runner/Runner.rc']
+               'flutter/windows/runner/Runner.rc','flutter/assets/icon.svg']
         self.original={}
         for relative in files:
             data=subprocess.check_output(['git','show','HEAD:'+relative],cwd=UPSTREAM)
@@ -68,6 +68,12 @@ class CustomizationTests(unittest.TestCase):
         installer=(BUNDLE/'westbeauty/installer.iss').read_text()
         self.assertIn(manifest['final_exe'],installer)
         self.assertNotIn('Parameters: "--install-service"',installer)
+    def test_titlebar_uses_brand_asset(self):
+        self.assertIn('West Beauty Group',self.read('flutter/assets/icon.svg'))
+    def test_installer_records_native_build_date(self):
+        installer=(BUNDLE/'westbeauty/installer.iss').read_text()
+        self.assertIn('#include "native-build-date.iss"',installer)
+        self.assertIn('ValueName: "BuildDate"; ValueData: "{#NativeBuildDate}"',installer)
     def test_required_patch_drift_fails_closed(self):
         # A second application is rejected rather than claiming a patch succeeded.
         with self.assertRaises(subprocess.CalledProcessError):self.run_patch()

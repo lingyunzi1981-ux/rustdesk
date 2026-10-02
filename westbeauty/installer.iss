@@ -1,3 +1,4 @@
+#include "native-build-date.iss"
 #define AppVersion "2.1.0"
 [Setup]
 AppId={{B5A4D980-6F1E-4E20-9A0A-57DFAE516B21}
@@ -33,6 +34,10 @@ Source: "rustdesk\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs crea
 [InstallDelete]
 ; Only remove the obsolete V2 executable, preserving settings and all user data.
 Type: files; Name: "{app}\rustdesk.exe"
+
+[Registry]
+Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{{B5A4D980-6F1E-4E20-9A0A-57DFAE516B21}_is1"; ValueType: string; ValueName: "BuildDate"; ValueData: "{#NativeBuildDate}"; Flags: uninsdeletevalue
+Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{{B5A4D980-6F1E-4E20-9A0A-57DFAE516B21}_is1"; ValueType: string; ValueName: "Version"; ValueData: "1.4.9"; Flags: uninsdeletevalue
 
 [Icons]
 Name: "{autodesktop}\西美远控"; Filename: "{app}\WestBeautyRemote.exe"; WorkingDir: "{app}"

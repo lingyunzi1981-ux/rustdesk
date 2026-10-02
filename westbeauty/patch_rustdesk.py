@@ -100,11 +100,6 @@ p=root/"src/platform/windows.rs"
 rep(p, 'const IS1: &str = "{54E86BC2-6C85-41F3-A9EB-1A94AC9B1F93}_is1";',
        'const IS1: &str = "{B5A4D980-6F1E-4E20-9A0A-57DFAE516B21}_is1";', required=True)
 
-# The upstream argument trim removed the final non-whitespace character.
-p=root/"flutter/windows/runner/main.cpp"
-rep(p, 'argument.erase(argument.find_last_not_of(" \\n\\r\\t"));',
-       'argument.erase(argument.find_last_not_of(" \\n\\r\\t") + 1);', required=True)
-
 # Brand the first-run UI in Chinese, while preserving a saved language choice.
 p=root/"libs/hbb_common/src/config.rs"
 rep(p, '        Config::load_::<LocalConfig>("_local")',

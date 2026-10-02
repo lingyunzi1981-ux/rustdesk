@@ -59,7 +59,8 @@ class CustomizationTests(unittest.TestCase):
         before=next(x for x in self.original['Cargo.toml'].decode().splitlines() if x.startswith('LegalCopyright'))
         self.assertIn(before,self.read('Cargo.toml'))
     def test_arguments_and_support_probe(self):
-        self.assertIn('find_last_not_of(" \\n\\r\\t") + 1',self.read('flutter/windows/runner/main.cpp'))
+        # Utf8FromUtf16 retains its trailing NUL; preserve upstream trimming.
+        self.assertIn('find_last_not_of(" \\n\\r\\t"));',self.read('flutter/windows/runner/main.cpp'))
         self.assertIn('args[0] == "--check-install"',self.read('src/core_main.rs'))
     def test_manifest_matches_package(self):
         manifest=json.loads(self.read('WEST_BEAUTY_CUSTOMIZATION.json'))

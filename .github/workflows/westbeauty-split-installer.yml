@@ -1,3 +1,4 @@
+# Restore hashing uses .NET SHA256 for Windows PowerShell compatibility.
 name: Verify West Beauty Split Installer
 on:
   push:

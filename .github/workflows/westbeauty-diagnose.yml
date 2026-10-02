@@ -22,6 +22,29 @@ jobs:
       - name: Install, launch and remove original V2 in disposable Windows runner
         shell: pwsh
         run: ./westbeauty/test_windows.ps1 -Installer './original/西美远控-Setup-x64.exe' -Baseline
+      - name: Probe Unicode shortcuts with both shell APIs
+        shell: pwsh
+        run: |
+          $root=Join-Path $env:ProgramFiles 'West Beauty Group\西美远控'
+          $exe=Join-Path $root 'rustdesk.exe'
+          Start-Process './original/西美远控-Setup-x64.exe' -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -Wait
+          $lnk=Join-Path $env:PUBLIC 'Desktop\西美远控.lnk'
+          $wscript=New-Object -ComObject WScript.Shell
+          $wlink=$wscript.CreateShortcut($lnk)
+          $shell=New-Object -ComObject Shell.Application
+          $item=$shell.NameSpace((Split-Path $lnk)).ParseName((Split-Path $lnk -Leaf))
+          $timer=[Diagnostics.Stopwatch]::StartNew()
+          $result=@{WscriptTarget=$wlink.TargetPath;ShellTarget=$item.GetLink.Path;ShellProperty=$item.ExtendedProperty('System.Link.TargetParsingPath')}
+          $result.ReadMs=$timer.ElapsedMilliseconds
+          $timer.Restart()
+          Start-Process $lnk -ArgumentList '--no-server'
+          Start-Sleep -Seconds 4
+          $apps=@(Get-CimInstance Win32_Process | Where-Object {$_.ExecutablePath -eq $exe})
+          $result.Processes=@($apps|Select-Object ProcessId,CommandLine)
+          $result.LaunchMs=$timer.ElapsedMilliseconds
+          $result|ConvertTo-Json -Depth 5|Tee-Object -FilePath qa-results/shortcut-probe.json
+          $apps|ForEach-Object {Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue}
+          Start-Process (Join-Path $root 'unins000.exe') -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -Wait
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:

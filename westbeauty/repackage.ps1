@@ -2,15 +2,15 @@ param([Parameter(Mandatory=$true)][string]$SourceInstaller)
 $ErrorActionPreference='Stop'
 $repo=(Get-Location).Path
 $source=(Resolve-Path $SourceInstaller).Path
-$input=Join-Path $env:RUNNER_TEMP 'WestBeautyNativeInput'
+$inputDirectory=Join-Path $env:RUNNER_TEMP 'WestBeautyNativeInput'
 $stage=Join-Path $repo 'repackage'
 New-Item -ItemType Directory -Force "$stage/rustdesk","$stage/flutter/windows/runner/resources" | Out-Null
-$install=Start-Process $source -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="'+$input+'"')) -Wait -PassThru
+$install=Start-Process $source -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="'+$inputDirectory+'"')) -Wait -PassThru
 if($install.ExitCode -ne 0){throw 'Source candidate extraction install failed'}
 try {
-  Get-ChildItem $input -Force | Where-Object {$_.Name -notlike 'unins*'} | Copy-Item -Destination "$stage/rustdesk" -Recurse -Force
+  Get-ChildItem $inputDirectory -Force | Where-Object {$_.Name -notlike 'unins*'} | Copy-Item -Destination "$stage/rustdesk" -Recurse -Force
 } finally {
-  Start-Process (Join-Path $input 'unins000.exe') -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -Wait
+  Start-Process (Join-Path $inputDirectory 'unins000.exe') -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -Wait
 }
 python -m pip install --disable-pip-version-check pillow
 if($LASTEXITCODE -ne 0){throw 'Pillow installation failed'}

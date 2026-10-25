@@ -68,6 +68,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: bridge-artifact
+          retention-days: 7
           path: |
             ./src/src/bridge_generated.rs
             ./src/src/bridge_generated.io.rs
@@ -94,6 +95,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: topmostwindow-artifacts-x64
+          retention-days: 7
           path: ./topmost/WindowInjection/x64/Release/WindowInjection.dll
 
   build-windows-x64:

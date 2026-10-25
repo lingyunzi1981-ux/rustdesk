@@ -50,4 +50,4 @@ jobs:
         with:
           name: WestBeauty-V2-Baseline-Windows-QA
           path: qa-results
-          retention-days: 14
+          retention-days: 7

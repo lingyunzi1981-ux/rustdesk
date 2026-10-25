@@ -620,6 +620,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: liblibrustdesk.a
+          retention-days: 7
           path: target/aarch64-apple-ios/release/liblibrustdesk.a
 
       - name: Build rustdesk
@@ -1099,6 +1100,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: librustdesk.so.${{ matrix.job.target }}
+          retention-days: 7
           path: ./target/${{ matrix.job.target }}/release/liblibrustdesk.so
 
       - name: Build rustdesk
